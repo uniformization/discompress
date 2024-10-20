@@ -1,6 +1,13 @@
 @echo off
 setlocal EnableDelayedExpansion
 
+set "compress_to_10_mb=false"
+for %%a in (%*) do (
+    if "%%~a"=="-t" (
+        set "compress_to_10_mb=true"
+    )
+)
+
 REM Get the directory and file extention of the input file
 set "input_file=%~1"
 set "input_directory=%~dp1"
@@ -48,7 +55,12 @@ REM Function for processing video file
     REM Calculate bitrate based on input file duration
     for /f "delims=" %%i in ('ffprobe -v error -show_entries format^=duration -of default^=noprint_wrappers^=1:nokey^=1 "%input_file%"') do set "duration=%%i"
 
-    set /a "bitrate=23 * 8 * 1000 / duration"
+    if "%compress_to_10_mb%"=="true" (
+        set /a "max_file_size=10 * 1024"
+    ) else (
+        set /a "max_file_size=25 * 1024"
+    )
+    set /a "bitrate=max_file_size * 8 / duration"
     echo Video length: %duration%s
     echo Bitrate target: %bitrate%k
 
@@ -85,9 +97,15 @@ REM Function for processing video file
         goto :eof
     )
 
+    if "%compress_to_10_mb%"=="true" (
+        set final_file_name="10MB_%input_file_name%.mp4"
+    ) else (
+        set final_file_name="25MB_%input_file_name%.mp4"
+    )
+
     pushd %input_directory%
     echo Compressing video file using FFmpeg...
-    ffmpeg -hide_banner -loglevel warning -stats -threads 0 -hwaccel auto -i "%input_file%" -preset slow -c:v h264_nvenc -b:v %video_bitrate%k -c:a aac -b:a %audio_bitrate%k -bufsize %bitrate%k -minrate 100 -maxrate %bitrate%k "25MB_%input_file_name%.mp4"
+    ffmpeg -hide_banner -loglevel warning -stats -threads 0 -hwaccel auto -i "%input_file%" -preset slow -c:v h264_nvenc -b:v %video_bitrate%k -c:a aac -b:a %audio_bitrate%k -bufsize %bitrate%k -minrate 100 -maxrate %bitrate%k %final_file_name%
     popd
 
     goto :eof
