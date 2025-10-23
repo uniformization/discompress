@@ -1,12 +1,10 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-set "compress_to_10_mb=false"
-for %%a in (%*) do (
-    if "%%~a"=="-t" (
-        set "compress_to_10_mb=true"
-    )
-)
+rem https://github.com/MyloBishop/discompress
+
+REM File size limit, in MB
+set file_size_limit=10
 
 REM Get the directory and file extention of the input file
 set "input_file=%~1"
@@ -55,11 +53,7 @@ REM Function for processing video file
     REM Calculate bitrate based on input file duration
     for /f "delims=" %%i in ('ffprobe -v error -show_entries format^=duration -of default^=noprint_wrappers^=1:nokey^=1 "%input_file%"') do set "duration=%%i"
 
-    if "%compress_to_10_mb%"=="true" (
-        set /a "max_file_size=10 * 1024"
-    ) else (
-        set /a "max_file_size=25 * 1024"
-    )
+    set /a "max_file_size=%file_size_limit% * 1024"
     set /a "bitrate=max_file_size * 8 / duration"
     echo Video length: %duration%s
     echo Bitrate target: %bitrate%k
@@ -97,11 +91,7 @@ REM Function for processing video file
         goto :eof
     )
 
-    if "%compress_to_10_mb%"=="true" (
-        set final_file_name="10MB_%input_file_name%.mp4"
-    ) else (
-        set final_file_name="25MB_%input_file_name%.mp4"
-    )
+    set final_file_name="%file_size_limit%MB_%input_file_name%.mp4"
 
     pushd %input_directory%
     echo Compressing video file using FFmpeg...
